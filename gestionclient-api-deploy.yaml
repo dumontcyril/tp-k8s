@@ -1,0 +1,71 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gestionclient-api
+  labels:
+    app: gestionclient
+spec:
+  ports:
+  - name: toto
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  selector:
+    app: gestionclient
+    tier: api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gestionclient-api
+  labels:
+    app: gestionclient
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gestionclient
+      tier: api
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: gestionclient
+        tier: api
+    spec:
+      containers:
+      - image: localhost:5000/gestionclients-api:1.0-SNAPSHOT
+        name: gestionclient-api
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: jdbc:mysql://gc-mysql:3306/gestionclient?useUnicode=true&characterEncoding=utf8&useSSL=false
+        - name: SPRING_DATASOURCE_USERNAME
+          value: root
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-pass
+              key: password
+        ports:
+        - containerPort: 8080
+          name: http
+        imagePullPolicy: Always
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: api-ingress
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefix
+    traefik.frontend.passHostHeader: "true"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /api
+        backend:
+          serviceName: gestionclient-api
+          servicePort: toto
